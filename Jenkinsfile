@@ -67,5 +67,5 @@ pipeline {
         // One or more steps need to be included within each condition's block.
         echo 'An error has ocurred'
       }
-         }
+    }
     }
