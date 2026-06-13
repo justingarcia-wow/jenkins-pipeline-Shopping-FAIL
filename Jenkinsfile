@@ -2,35 +2,52 @@ pipeline {
     agent any
    
     stages {
-        stage('Create  directory for the WEB Application')
-        {
+
+        stage('Prepare directory') {
             steps{
-               
-                //Fisrt, drop the directory if exists
-                sh 'rm -rf /home/jenkins/tomcat-web'
-                //Create the directory
-                sh 'mkdir /home/jenkins/tomcat-web'
-                
+                sh 'rm -rf /var/jenkins_home/tomcat-web || true'
+                sh 'mkdir -p /var/jenkins_home/tomcat-web'
             }
         }
-        stage('Drop the Apache Tomcat Docker container'){
+
+        stage('Copy app to Jenkins') {
             steps {
-            echo 'droping the container...'
-            sh 'docker rm -f tomcat1'
+                sh '''
+                echo "Verificando carpeta shopping:"
+                ls -la
+                ls -la shopping
+
+                mkdir -p /var/jenkins_home/tomcat-web/shopping
+                cp -r shopping/* /var/jenkins_home/tomcat-web/shopping
+                '''
             }
         }
-        stage('Create the Tomcat container') {
+
+        stage('Create Tomcat container') {
             steps {
-            echo 'Creating the container...'
-            sh 'docker run -dit --name tomcat1 -p 9090:8080  -v /home/jenkins/tomcat-web:/usr/local/tomcat/webapps tomcat:19.0'
+                sh '''
+                docker rm -f tomcat1 || true
+#VERSION DE TOMCAT QUE NO EXISTE A PROPOSITO
+                docker run -dit --name tomcat1 -p 9090:8080 tomcat:19.0
+                '''
             }
         }
-        stage('Copy the web application to the container directory') {
+
+        stage('Deploy app to Tomcat') {
             steps {
-                echo 'Creating the shopping folder in the container'
-                sh 'mkdir /home/jenkins/tomcat-web/shopping'
-                echo 'Copying web application...'             
-                sh 'cp -r shopping/* /home/jenkins/tomcat-web/shopping'
+                sh '''
+                echo "Copiando app al contenedor Tomcat..."
+                docker cp /var/jenkins_home/tomcat-web/shopping tomcat1:/usr/local/tomcat/webapps/
+                '''
+            }
+        }
+
+        stage('Verify deployment') {
+            steps {
+                sh '''
+                echo "Verificando dentro del contenedor:"
+                docker exec tomcat1 ls /usr/local/tomcat/webapps/
+                '''
             }
         }
     }
@@ -50,5 +67,5 @@ pipeline {
         // One or more steps need to be included within each condition's block.
         echo 'An error has ocurred'
       }
- }
-}
+         }
+    }
